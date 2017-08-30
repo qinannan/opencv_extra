@@ -2,6 +2,7 @@ import numpy as np
 import tensorflow as tf
 import os
 import argparse
+from prepare_for_dnn import prepare_for_dnn
 
 parser = argparse.ArgumentParser(description='Script for OpenCV\'s DNN module '
                                              'test data generation')
@@ -9,6 +10,8 @@ parser.add_argument('-f', dest='freeze_graph_tool', required=True,
                     help='Path to freeze_graph.py tool')
 parser.add_argument('-o', dest='optimizer_tool', required=True,
                     help='Path to optimize_for_inference.py tool')
+parser.add_argument('-t', dest='transform_graph_tool', required=True,
+                    help='Path to transform_graph tool')
 args = parser.parse_args()
 
 np.random.seed(2701)
@@ -22,8 +25,12 @@ tf.set_random_seed(324)
 sess = tf.Session()
 
 def writeBlob(data, name):
-    # NHWC->NCHW
-    np.save(name + '.npy', data.transpose(0, 3, 1, 2))
+    if data.ndim == 4:
+        # NHWC->NCHW
+        np.save(name + '.npy', data.transpose(0, 3, 1, 2))
+    else:
+        # Save raw data.
+        np.save(name + '.npy', data)
 
 def save(inp, out, name):
     sess.run(tf.global_variables_initializer())
@@ -36,17 +43,10 @@ def save(inp, out, name):
     saver = tf.train.Saver()
     saver.save(sess, 'tmp.ckpt')
     tf.train.write_graph(sess.graph.as_graph_def(), "", "graph.pb")
-    os.system('python ' + args.freeze_graph_tool +
-              ' --input_graph graph.pb '
-              '--input_checkpoint tmp.ckpt '
-              '--output_graph frozen_graph.pb '
-              '--output_node_names ' + out.name[:out.name.rfind(':')])
-    os.system('python ' + args.optimizer_tool +
-              ' --input frozen_graph.pb '
-              '--output ' + name + '_net.pb '
-              '--frozen_graph True '
-              '--input_names ' + inp.name[:inp.name.rfind(':')] +
-              ' --output_names ' + out.name[:out.name.rfind(':')])
+    prepare_for_dnn('graph.pb', 'tmp.ckpt', args.freeze_graph_tool,
+                    args.optimizer_tool, args.transform_graph_tool,
+                    inp.name[:inp.name.rfind(':')], out.name[:out.name.rfind(':')],
+                    name + '_net.pb')
 
 # Test cases ###################################################################
 # shape: NHWC
@@ -102,7 +102,8 @@ pool = tf.layers.max_pooling2d(inputs=conv, pool_size=3, strides=2, padding='VAL
 save(inp, pool, 'max_pool_odd_valid')
 ################################################################################
 inp = tf.placeholder(tf.float32, [1, 7, 7, 2], 'input')
-conv = tf.layers.conv2d(inputs=inp, filters=3, kernel_size=[3, 3], padding='SAME')
+conv = tf.layers.conv2d(inputs=inp, filters=3, kernel_size=[3, 3], padding='SAME',
+                        activation=tf.nn.relu6)
 pool = tf.layers.max_pooling2d(inputs=conv, pool_size=2, strides=2, padding='SAME')
 save(inp, pool, 'max_pool_odd_same')
 ################################################################################
@@ -114,6 +115,23 @@ deconv = tf.nn.conv2d_transpose(value=inp, filter=deconv_weights,
 deconv_bias = tf.contrib.layers.bias_add(deconv, activation_fn=tf.nn.relu,
                                          initializer=tf.random_normal_initializer())
 save(inp, deconv_bias, 'deconvolution')
+################################################################################
+inp = tf.placeholder(tf.float32, [2, 5, 4, 3], 'input')
+bn = tf.contrib.layers.batch_norm(inputs=inp, is_training=False,
+                                  scale=True, param_initializers={
+                                    'beta': tf.random_normal_initializer(),
+                                    'gamma': tf.random_normal_initializer(),
+                                    'moving_mean': tf.random_uniform_initializer(-2, -1),
+                                    'moving_variance': tf.random_uniform_initializer(1, 2)
+                                  })
+save(inp, bn, 'batch_norm')
+################################################################################
+inp = tf.placeholder(tf.float32, [2, 10, 9, 6], 'input')
+weights = tf.Variable(tf.random_normal([5, 3, 6, 4]), name='weights')
+conv = tf.nn.depthwise_conv2d(input=inp, filter=weights, strides=[1, 1, 1, 1],
+                              padding='SAME')
+save(inp, conv, 'depthwise_conv2d')
+################################################################################
 
 # Uncomment to print the final graph.
 # with tf.gfile.FastGFile('fused_batch_norm_net.pb') as f:
