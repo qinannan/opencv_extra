@@ -474,6 +474,10 @@ l2norm = tf.nn.l2_normalize(l2norm, axis=-1)
 l2norm = tf.nn.l2_normalize(l2norm, axis=[0, 1])
 save(inp, l2norm, 'l2_normalize_3d')
 ################################################################################
+inp = tf.placeholder(tf.float32, [2, 3, 4, 5], 'input')
+resized = tf.image.resize_bilinear(inp, size=[9, 8], name='resize_bilinear')
+save(inp, resized, 'resize_bilinear')
+################################################################################
 
 # Uncomment to print the final graph.
 # with tf.gfile.FastGFile('fused_batch_norm_net.pb') as f:
