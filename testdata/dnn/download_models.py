@@ -279,6 +279,17 @@ models = [
         url='http://posefs1.perception.cs.cmu.edu/OpenPose/models/pose/mpi/pose_iter_160000.caffemodel',
         sha='a344f4da6b52892e44a0ca8a4c68ee605fc611cf',
         filename='openpose_pose_mpi.caffemodel'),
+    Model(
+        name='Faster-RCNN, InveptionV2 (TensorFlow)',
+        url='http://download.tensorflow.org/models/object_detection/faster_rcnn_inception_v2_coco_2018_01_28.tar.gz',
+        sha='c710f25e5c6a3ce85fe793d5bf266d581ab1c230',
+        filename='faster_rcnn_inception_v2_coco_2018_01_28.tar.gz'),
+    Model(
+        name='Faster-RCNN, InveptionV2 (TensorFlow)',
+        archive='faster_rcnn_inception_v2_coco_2018_01_28.tar.gz',
+        member='faster_rcnn_inception_v2_coco_2018_01_28/frozen_inference_graph.pb',
+        sha='f2e4bf386b9bb3e25ddfcbbd382c20f417e444f3',
+        filename='faster_rcnn_inception_v2_coco_2018_01_28.pb'),
 ]
 
 # Note: models will be downloaded to current working directory
